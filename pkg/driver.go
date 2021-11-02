@@ -15,6 +15,7 @@ package pkg
 
 import (
 	"context"
+	"sigs.k8s.io/cosi-driver-minio/pkg/madmin"
 
 	"sigs.k8s.io/cosi-driver-minio/pkg/minio"
 )
@@ -25,10 +26,15 @@ func NewDriver(ctx context.Context, provisioner, minioHost, accessKey, secretKey
 		return nil, nil, err
 	}
 
+	adm, err := madmin.New(minioHost, accessKey, secretKey, true)
+	if err != nil {
+		return nil, nil, err
+	}
 	return &IdentityServer{
 			provisioner: provisioner,
 		}, &ProvisionerServer{
 			provisioner: provisioner,
 			mc:          mc,
+			adm:         adm,
 		}, nil
 }

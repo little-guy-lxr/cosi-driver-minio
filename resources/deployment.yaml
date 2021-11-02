@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: objectstorage-provisioner
+  namespace: minio-cosi-driver
   labels:
     app.kubernetes.io/part-of: container-object-storage-interface
     app.kubernetes.io/component: driver-minio
@@ -37,8 +38,8 @@ spec:
         emptyDir: {}
       containers:
       - name: minio-cosi-driver
-        image: $(MINIO_IMAGE_ORG)/minio-cosi-driver:$(MINIO_IMAGE_VERSION)
-        imagePullPolicy: Always
+        image: build-harbor.alauda.cn/acp/minio-cosi-driver:test
+        imagePullPolicy: IfNotPresent
         envFrom:
         - secretRef:
             name: objectstorage-provisioner
@@ -46,7 +47,7 @@ spec:
         - mountPath: /var/lib/cosi
           name: socket
       - name: objectstorage-provisioner-sidecar
-        image: $(IMAGE_ORG)/objectstorage-sidecar:$(IMAGE_VERSION)
+        image: quay.io/containerobjectstorage/objectstorage-sidecar:canary
         imagePullPolicy: Always
         envFrom:
         - secretRef:

@@ -15,6 +15,10 @@ package pkg
 
 import (
 	"context"
+	"fmt"
+	"github.com/aws/aws-sdk-go/aws/awserr"
+	"k8s.io/apimachinery/pkg/util/json"
+	"sigs.k8s.io/cosi-driver-minio/pkg/madmin"
 
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/codes"
@@ -29,6 +33,7 @@ import (
 type ProvisionerServer struct {
 	provisioner string
 	mc          *minio.C
+	adm         *madmin.AdminClient
 }
 
 // ProvisionerCreateBucket is an idempotent method for creating buckets
@@ -106,20 +111,79 @@ func (s *ProvisionerServer) ProvisionerCreateBucket(ctx context.Context,
 func (s *ProvisionerServer) ProvisionerDeleteBucket(ctx context.Context,
 	req *cosi.ProvisionerDeleteBucketRequest) (*cosi.ProvisionerDeleteBucketResponse, error) {
 
+	klog.Infof("Deleting bucket %q", req.GetBucketId())
+	if err := s.mc.DeleteBucket(ctx, req.GetBucketId()); err != nil {
+		klog.ErrorS(err, "failed to delete bucket %q", req.GetBucketId())
+		return nil, status.Error(codes.Internal, "failed to delete bucket")
+	}
+	klog.Infof("Successfully deleted Bucket %q", req.GetBucketId())
+
 	return &cosi.ProvisionerDeleteBucketResponse{}, nil
+
 }
 
 func (s *ProvisionerServer) ProvisionerGrantBucketAccess(ctx context.Context,
 	req *cosi.ProvisionerGrantBucketAccessRequest) (*cosi.ProvisionerGrantBucketAccessResponse, error) {
 
+	userName := req.GetAccountName()
+	bucketName := req.GetBucketId()
+	accessPolicy := req.GetAccessPolicy()
+
+	var statement minio.PolicyStatement
+	err := json.Unmarshal([]byte(accessPolicy), &statement)
+	if err != nil {
+		klog.Errorf("unmarshal policy failed err %s", err.Error())
+		return nil, err
+	}
+
+	err = s.adm.AddUser(ctx, userName, s.mc.GetSecretKey())
+	if err != nil {
+		klog.Error("failed to create user", err)
+		return nil, status.Error(codes.Internal, "User creation failed")
+	}
+
+	statement.WithSID(userName).
+		ForPrincipals(userName).
+		ForResources(bucketName).
+		ForSubResources(bucketName)
+
+	policy, err := s.mc.GetBucketPolicy(bucketName)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok && aerr.Code() != "NoSuchBucketPolicy" {
+			return nil, status.Error(codes.Internal, "fetching policy failed")
+		}
+	}
+	if policy == nil {
+		policy = minio.NewBucketPolicy(statement)
+	} else {
+		policy = policy.ModifyBucketPolicy(statement)
+	}
+	err = s.mc.SettBucketPolicy(bucketName, policy)
+	if err != nil {
+		klog.Error("failed to set policy", err)
+		return nil, status.Error(codes.Internal, "failed to set policy")
+	}
+
+	info, err := s.adm.GetUserInfo(ctx, userName)
+	if err != nil {
+		klog.Error("failed to get user", err)
+		return nil, status.Error(codes.Internal, "User get failed")
+	}
+
 	return &cosi.ProvisionerGrantBucketAccessResponse{
-		AccountId:               "minio",
-		CredentialsFileContents: "{\"username\":\"minio\", \"password\": \"minio123\"}",
+		AccountId:               userName,
+		CredentialsFileContents: fmt.Sprintf("[default]\naws_access_key %s\naws_secret_key %s", userName, info.SecretKey),
 	}, nil
 }
 
 func (s *ProvisionerServer) ProvisionerRevokeBucketAccess(ctx context.Context,
 	req *cosi.ProvisionerRevokeBucketAccessRequest) (*cosi.ProvisionerRevokeBucketAccessResponse, error) {
 
+	klog.Infof("Deleting user %q", req.GetAccountId())
+	userName := req.GetBucketId()
+	if err := s.adm.RemoveUser(ctx, userName); err != nil {
+		klog.Error("failed to Revoke Bucket Access")
+		return nil, status.Error(codes.Internal, "failed to Revoke Bucket Access")
+	}
 	return &cosi.ProvisionerRevokeBucketAccessResponse{}, nil
 }

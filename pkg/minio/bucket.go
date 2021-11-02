@@ -24,8 +24,8 @@ var ErrBucketAlreadyExists = errors.New("Bucket Already Exists")
 
 type MakeBucketOptions minio.MakeBucketOptions
 
-func (x *C) CreateBucket(ctx context.Context, bucketName string, options MakeBucketOptions) (string, error) {
-	if err := x.client.MakeBucket(ctx, bucketName, minio.MakeBucketOptions(options)); err != nil {
+func (s *C) CreateBucket(ctx context.Context, bucketName string, options MakeBucketOptions) (string, error) {
+	if err := s.client.MakeBucket(ctx, bucketName, minio.MakeBucketOptions(options)); err != nil {
 		errCode := minio.ToErrorResponse(err).Code
 		if errCode == "BucketAlreadyExists" || errCode == "BucketAlreadyOwnedByYou" {
 			return bucketName, ErrBucketAlreadyExists
@@ -33,4 +33,15 @@ func (x *C) CreateBucket(ctx context.Context, bucketName string, options MakeBuc
 		return "", err
 	}
 	return bucketName, nil
+}
+
+func (s *C) DeleteBucket(ctx context.Context, bucketName string) error {
+	if err := s.client.RemoveBucket(ctx, bucketName); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *C) GetSecretKey() string {
+	return s.secretKey
 }
