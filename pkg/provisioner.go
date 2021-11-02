@@ -58,6 +58,7 @@ func (s *ProvisionerServer) ProvisionerCreateBucket(ctx context.Context,
 	}
 
 	bucketName := s3.BucketName
+	klog.Infof("Call ProvisionerCreateBucket bucket:%s", bucketName)
 	klog.V(3).InfoS("Create Bucket", "name", bucketName)
 
 	options := minio.MakeBucketOptions{}
@@ -124,6 +125,8 @@ func (s *ProvisionerServer) ProvisionerDeleteBucket(ctx context.Context,
 
 func (s *ProvisionerServer) ProvisionerGrantBucketAccess(ctx context.Context,
 	req *cosi.ProvisionerGrantBucketAccessRequest) (*cosi.ProvisionerGrantBucketAccessResponse, error) {
+
+	klog.Infof("Call ProvisionerGrantBucketAccess bucket:%s", req.GetBucketId())
 
 	userName := req.GetAccountName()
 	bucketName := req.GetBucketId()
