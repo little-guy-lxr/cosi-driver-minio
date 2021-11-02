@@ -15,6 +15,7 @@ package pkg
 
 import (
 	"context"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/cosi-driver-minio/pkg/madmin"
 
 	"sigs.k8s.io/cosi-driver-minio/pkg/minio"
@@ -26,8 +27,9 @@ func NewDriver(ctx context.Context, provisioner, minioHost, accessKey, secretKey
 		return nil, nil, err
 	}
 
-	adm, err := madmin.New(minioHost, accessKey, secretKey, true)
+	adm, err := madmin.New(minioHost, accessKey, secretKey, false)
 	if err != nil {
+		klog.Errorf("new admin client failed %s", err.Error())
 		return nil, nil, err
 	}
 	return &IdentityServer{
