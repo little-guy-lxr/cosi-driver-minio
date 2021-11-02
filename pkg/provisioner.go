@@ -57,7 +57,7 @@ func (s *ProvisionerServer) ProvisionerCreateBucket(ctx context.Context,
 		return nil, status.Error(codes.InvalidArgument, "S3 Protocol is nil")
 	}
 
-	bucketName := s3.BucketName
+	bucketName := req.GetName()
 	klog.Infof("Call ProvisionerCreateBucket bucket:%s", bucketName)
 	klog.V(3).InfoS("Create Bucket", "name", bucketName)
 
