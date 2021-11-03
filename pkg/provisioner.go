@@ -196,7 +196,7 @@ func (s *ProvisionerServer) ProvisionerGrantBucketAccess(ctx context.Context,
 	klog.Infof("secret key before %s after is %s", s.mc.GetSecretKey(), info.SecretKey)
 	return &cosi.ProvisionerGrantBucketAccessResponse{
 		AccountId:               userName,
-		CredentialsFileContents: fmt.Sprintf("[default]\naws_access_key %s\naws_secret_key %s", userName, info.SecretKey),
+		CredentialsFileContents: fmt.Sprintf("[default]\naws_access_key %s\naws_secret_key %s", userName, s.mc.GetSecretKey()),
 	}, nil
 }
 

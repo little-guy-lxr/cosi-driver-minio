@@ -13,38 +13,15 @@ data:
           },
           "Action": [
               "s3:DeleteObject",
-              "s3:DeleteObjectVersion",
-              "s3:GetBucketAcl",
-              "s3:GetBucketCORS",
-              "s3:GetBucketLocation",
-              "s3:GetBucketLogging",
-              "s3:GetBucketNotification",
-              "s3:GetBucketTagging",
-              "s3:GetBucketVersioning",
-              "s3:GetBucketWebsite",
               "s3:GetObject",
-              "s3:GetObjectAcl",
-              "s3:GetObjectTorrent",
-              "s3:GetObjectVersion",
-              "s3:GetObjectVersionAcl",
-              "s3:GetObjectVersionTorrent",
-              "s3:ListAllMyBuckets",
               "s3:ListBucket",
               "s3:ListBucketMultiPartUploads",
               "s3:ListBucketVersions",
-              "s3:ListMultipartUploadParts",
-              "s3:PutBucketTagging",
-              "s3:PutBucketVersioning",
-              "s3:PutBucketWebsite",
-              "s3:PutBucketVersioning",
-              "s3:PutLifecycleConfiguration",
-              "s3:PutObject",
-              "s3:PutObjectAcl",
-              "s3:PutObjectVersionAcl",
-              "s3:PutReplicationConfiguration",
-              "s3:RestoreObject"
+              "s3:PutObject"
           ],
-          "Resource": "arn:aws:s3:::test-d8d0c0ab-0a40-4f84-880a-daa8cecc16cf/*"
+          "Resource": [
+              "arn:aws:s3:::test-d8d0c0ab-0a40-4f84-880a-daa8cecc16cf/*"
+          ]
         }
       ]
     }
