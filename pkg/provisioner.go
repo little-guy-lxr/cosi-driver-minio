@@ -130,25 +130,38 @@ func (s *ProvisionerServer) ProvisionerGrantBucketAccess(ctx context.Context,
 
 	userName := req.GetAccountName()
 	bucketName := req.GetBucketId()
-	accessPolicy := req.GetAccessPolicy()
-
-	statement := minio.NewPolicyStatement()
-	err := json.Unmarshal([]byte(accessPolicy), statement)
+	accessPolicyStr := req.GetAccessPolicy()
+	klog.Infof("get policy: %s", accessPolicyStr)
+	payload := make(map[string]string)
+	err := json.Unmarshal([]byte(accessPolicyStr), &payload)
 	if err != nil {
 		klog.Errorf("unmarshal policy failed err %s", err.Error())
 		return nil, err
 	}
 
-	err = s.adm.AddUser(ctx, userName, s.mc.GetSecretKey())
+	state, ok := payload["bucket_policy"]
+	if !ok {
+		klog.Errorf("policy no container bucket policy")
+		return nil, errors.New("policy no container bucket policy")
+	}
+	klog.Infof("state is %s", state)
+	policyAccess := minio.NewBucketPolicy()
+
+	err = json.Unmarshal([]byte(state), policyAccess)
 	if err != nil {
-		klog.Error("failed to create user", err)
-		return nil, status.Error(codes.Internal, "User creation failed")
+		klog.Errorf("unmarshal policy failed err %s", err.Error())
+		return nil, err
 	}
 
-	statement.WithSID(userName).
-		ForPrincipals(userName).
-		ForResources(bucketName).
-		ForSubResources(bucketName)
+	klog.Infof("action length is %d", len(policyAccess.Statement[0].Action))
+
+	for index, _ := range policyAccess.Statement {
+		policyAccess.Statement[index].
+			WithSID(userName).
+			ForPrincipals(userName).
+			ForResources(bucketName).
+			ForSubResources(bucketName)
+	}
 
 	policy, err := s.mc.GetBucketPolicy(bucketName)
 	if err != nil {
@@ -157,13 +170,21 @@ func (s *ProvisionerServer) ProvisionerGrantBucketAccess(ctx context.Context,
 		}
 	}
 	if policy == nil {
-		policy = minio.NewBucketPolicy(*statement)
+		klog.Info("policy not found ")
+		policy = policyAccess
 	} else {
-		policy = policy.ModifyBucketPolicy(*statement)
+		klog.Info("policy existing")
+		policy = policy.ModifyBucketPolicy(policyAccess.Statement...)
+	}
+
+	err = s.adm.AddUser(ctx, userName, s.mc.GetSecretKey())
+	if err != nil {
+		klog.Error("failed to create user", err)
+		return nil, status.Error(codes.Internal, "User creation failed")
 	}
 	err = s.mc.SettBucketPolicy(bucketName, policy)
 	if err != nil {
-		klog.Error("failed to set policy err:%s", err)
+		klog.Errorf("failed to set policy err:%s", err.Error())
 		return nil, status.Error(codes.Internal, "failed to set policy")
 	}
 
@@ -172,7 +193,7 @@ func (s *ProvisionerServer) ProvisionerGrantBucketAccess(ctx context.Context,
 		klog.Error("failed to get user", err)
 		return nil, status.Error(codes.Internal, "User get failed")
 	}
-
+	klog.Infof("secret key before %s after is %s", s.mc.GetSecretKey(), info.SecretKey)
 	return &cosi.ProvisionerGrantBucketAccessResponse{
 		AccountId:               userName,
 		CredentialsFileContents: fmt.Sprintf("[default]\naws_access_key %s\naws_secret_key %s", userName, info.SecretKey),
