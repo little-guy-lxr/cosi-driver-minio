@@ -132,8 +132,8 @@ func (s *ProvisionerServer) ProvisionerGrantBucketAccess(ctx context.Context,
 	bucketName := req.GetBucketId()
 	accessPolicy := req.GetAccessPolicy()
 
-	var statement minio.PolicyStatement
-	err := json.Unmarshal([]byte(accessPolicy), &statement)
+	statement := minio.NewPolicyStatement()
+	err := json.Unmarshal([]byte(accessPolicy), statement)
 	if err != nil {
 		klog.Errorf("unmarshal policy failed err %s", err.Error())
 		return nil, err
@@ -157,13 +157,13 @@ func (s *ProvisionerServer) ProvisionerGrantBucketAccess(ctx context.Context,
 		}
 	}
 	if policy == nil {
-		policy = minio.NewBucketPolicy(statement)
+		policy = minio.NewBucketPolicy(*statement)
 	} else {
-		policy = policy.ModifyBucketPolicy(statement)
+		policy = policy.ModifyBucketPolicy(*statement)
 	}
 	err = s.mc.SettBucketPolicy(bucketName, policy)
 	if err != nil {
-		klog.Error("failed to set policy", err)
+		klog.Error("failed to set policy err:%s", err)
 		return nil, status.Error(codes.Internal, "failed to set policy")
 	}
 
